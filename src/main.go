@@ -18,7 +18,7 @@ func main() {
 	healthCheck.Monitor = monitor
 	http.Handle("/hc", healthCheck)
 
-	http.ListenAndServe("localhost:8000", nil)
+	http.ListenAndServe("0.0.0.0:8000", nil)
 }
 
 func HttpStatusHandler(writer http.ResponseWriter, request *http.Request) {
