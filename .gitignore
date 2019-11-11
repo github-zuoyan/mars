@@ -1,5 +1,4 @@
 *.swo
-*.swp
 .DS_Store
 .env
 .idea
