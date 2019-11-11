@@ -15,7 +15,7 @@ func main() {
 	http.HandleFunc("/", HttpStatusHandler)
 	http.HandleFunc("/deploy", handle.DeployHandler)
 	var healthCheck handle.HealthCheck
-	healthCheck.Monitor = monitor
+	healthCheck.Monitor = &monitor
 	http.Handle("/hc", healthCheck)
 
 	http.ListenAndServe("0.0.0.0:8000", nil)

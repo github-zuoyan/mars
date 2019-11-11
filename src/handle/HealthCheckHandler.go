@@ -7,17 +7,17 @@ import (
 )
 
 type HealthCheck struct {
-	vo.Monitor
+	Monitor *vo.Monitor
 }
 
 func (h HealthCheck) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	_, err := http.Get("http://localhost:8080")
 	if err == nil {
-		h.Status = http.StatusOK
-		h.Desc = "OK"
+		h.Monitor.Status = http.StatusOK
+		h.Monitor.Desc = "OK"
 	} else {
-		h.Status = http.StatusServiceUnavailable
-		h.Desc = "Service Unavailable"
+		h.Monitor.Status = http.StatusServiceUnavailable
+		h.Monitor.Desc = "Service Unavailable"
 	}
 	fmt.Fprintln(writer, "OK")
 }
