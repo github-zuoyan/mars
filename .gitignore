@@ -1,0 +1,6 @@
+*.swo
+.DS_Store
+.env
+.idea
+.vagrant
+vendor
