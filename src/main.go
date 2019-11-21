@@ -14,10 +14,10 @@ var monitor = vo.Monitor{http.StatusServiceUnavailable, "503 Service Unavailable
 func main() {
 	http.HandleFunc("/", HttpStatusHandler)
 	http.HandleFunc("/deploy", handle.DeployHandler)
+	http.HandleFunc("/heat", handle.HeartHandler)
 	var healthCheck handle.HealthCheck
 	healthCheck.Monitor = &monitor
 	http.Handle("/hc", healthCheck)
-
 	http.ListenAndServe("0.0.0.0:8000", nil)
 }
 
