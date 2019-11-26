@@ -49,6 +49,14 @@ func HeatHandler(writer http.ResponseWriter, request *http.Request) {
 		}
 	}
 
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Fprint(writer, "ERR_HEAT_URL_CONNECT")
+		return
+	} else {
+		resp.Body.Close()
+	}
+
 	ch := make(chan int, n)
 
 	count := n / c
@@ -76,8 +84,11 @@ func GetHttp(url string, n int, ch chan int, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for i := 0; i < n; i++ {
 		start := time.Now().UnixNano()
-		http.Get(url)
+		resp, _ := http.Get(url)
 		end := time.Now().UnixNano()
 		ch <- int((end - start) / 1000)
+		if resp != nil {
+			resp.Body.Close()
+		}
 	}
 }
