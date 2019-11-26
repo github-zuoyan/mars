@@ -14,7 +14,7 @@ var monitor = vo.Monitor{http.StatusServiceUnavailable, "503 Service Unavailable
 func main() {
 	http.HandleFunc("/", HttpStatusHandler)
 	http.HandleFunc("/deploy", handle.DeployHandler)
-	http.HandleFunc("/heat", handle.HeartHandler)
+	http.HandleFunc("/heat", handle.HeatHandler)
 	var healthCheck handle.HealthCheck
 	healthCheck.Monitor = &monitor
 	http.Handle("/hc", healthCheck)
@@ -26,10 +26,10 @@ func HttpStatusHandler(writer http.ResponseWriter, request *http.Request) {
 	if err == nil {
 		monitor.Status = code
 		writer.WriteHeader(monitor.Status)
-		fmt.Fprintln(writer, "Hello, Http Status:", monitor.Status)
+		fmt.Fprintln(writer, "Http_Status:", monitor.Status)
 	} else {
 		writer.WriteHeader(monitor.Status)
-		fmt.Fprintln(writer, "Hello, Http Status:", monitor.Status)
+		fmt.Fprintln(writer, "Http_Status:", monitor.Status)
 	}
 
 }

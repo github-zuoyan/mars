@@ -1,29 +1,52 @@
 package handle
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
-	"strconv"
+	URL "net/url"
 	"sync"
 	"time"
 )
 
-func HeartHandler(writer http.ResponseWriter, request *http.Request) {
+func HeatHandler(writer http.ResponseWriter, request *http.Request) {
 	values := request.URL.Query()
-	c, err := strconv.Atoi(values.Get("c"))
-	if err != nil {
-		c = 10
-	}
 
-	n, err := strconv.Atoi(values.Get("n"))
-	if err != nil {
-		n = 1000
-	}
+	var c, n, url = 10, 1000, "http://0.0.0.0:8080"
+	appname := values.Get("appname")
 
-	url := values.Get("url")
+	if appname != "" {
+		resp, err := http.Get("http://tool.vip.qiyi.domain/preheat/query?appname=" + appname)
 
-	if url == "" {
-		url = "http://0.0.0.0:8080"
+		defer resp.Body.Close()
+
+		if err == nil && resp.StatusCode == 200 {
+
+			body, _ := ioutil.ReadAll(resp.Body)
+			var urlMapList []map[string]string
+			json.Unmarshal(body, &urlMapList)
+			urlMap := urlMapList[0]
+			conditionMap := make(map[string]int)
+			json.Unmarshal([]byte(urlMap["condition"]), &conditionMap)
+
+			c = conditionMap["c"]
+
+			n = conditionMap["n"]
+
+			url = urlMap["url"]
+
+			if url == "" {
+				url = "http://0.0.0.0:8080"
+			} else {
+				u, err := URL.Parse(url)
+				if err != nil {
+					url = "http://0.0.0.0:8080/"
+				} else {
+					url = "http://0.0.0.0:8080" + u.Path + "?" + u.RawQuery
+				}
+			}
+		}
 	}
 
 	ch := make(chan int, n)
@@ -56,8 +79,5 @@ func GetHttp(url string, n int, ch chan int, wg *sync.WaitGroup) {
 		http.Get(url)
 		end := time.Now().UnixNano()
 		ch <- int((end - start) / 1000)
-		if end <= start {
-			println("result=", (end-start)/1000)
-		}
 	}
 }

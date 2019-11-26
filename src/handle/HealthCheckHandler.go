@@ -19,5 +19,5 @@ func (h HealthCheck) ServeHTTP(writer http.ResponseWriter, request *http.Request
 		h.Monitor.Status = http.StatusServiceUnavailable
 		h.Monitor.Desc = "Service Unavailable"
 	}
-	fmt.Fprintln(writer, "OK")
+	fmt.Fprintln(writer, "http_status:", h.Monitor.Status)
 }
