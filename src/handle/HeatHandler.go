@@ -3,7 +3,9 @@ package handle
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	URL "net/url"
 	"sync"
@@ -87,7 +89,9 @@ func GetHttp(url string, n int, ch chan int, wg *sync.WaitGroup) {
 		resp, _ := http.Get(url)
 		end := time.Now().UnixNano()
 		ch <- int((end - start) / 1000)
-		if resp != nil {
+		log.Print("time:", int((end-start)/1000), "url:", url)
+		if resp != nil && resp.Body != nil {
+			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
 		}
 	}
