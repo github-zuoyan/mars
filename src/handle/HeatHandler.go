@@ -45,7 +45,7 @@ func HeatHandler(writer http.ResponseWriter, request *http.Request) {
 				if err != nil {
 					url = "http://0.0.0.0:8080/"
 				} else {
-					url = "http://10.130.6.190:8080" + u.Path + "?" + u.RawQuery
+					url = "http://0.0.0.0:8080" + u.Path + "?" + u.RawQuery
 				}
 			}
 		}
