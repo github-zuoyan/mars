@@ -45,7 +45,7 @@ func HeatHandler(writer http.ResponseWriter, request *http.Request) {
 				if err != nil {
 					url = "http://0.0.0.0:8080/"
 				} else {
-					url = "http://0.0.0.0:8080" + u.Path + "?" + u.RawQuery
+					url = "http://10.130.6.190:8080" + u.Path + "?" + u.RawQuery
 				}
 			}
 		}
@@ -84,15 +84,24 @@ func HeatHandler(writer http.ResponseWriter, request *http.Request) {
 
 func GetHttp(url string, n int, ch chan int, wg *sync.WaitGroup) {
 	defer wg.Done()
+
 	for i := 0; i < n; i++ {
+
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return
+		}
+		req.Close = true
+
 		start := time.Now().UnixNano()
-		resp, _ := http.Get(url)
+		resp, _ := http.DefaultClient.Do(req)
 		end := time.Now().UnixNano()
+
 		ch <- int((end - start) / 1000)
-		log.Print("time:", int((end-start)/1000), "url:", url)
+		log.Print("time:", int((end-start)/1000000), ", url:", url)
 		if resp != nil && resp.Body != nil {
-			io.Copy(ioutil.Discard, resp.Body)
 			resp.Body.Close()
+			io.Copy(ioutil.Discard, resp.Body)
 		}
 	}
 }
