@@ -11,13 +11,16 @@ type HealthCheck struct {
 }
 
 func (h HealthCheck) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	_, err := http.Get("http://localhost:8080")
-	if err == nil {
+	resp, err := http.Get("http://0.0.0.0:8080")
+	if err == nil && resp != nil && resp.StatusCode == http.StatusOK {
 		h.Monitor.Status = http.StatusOK
 		h.Monitor.Desc = "OK"
 	} else {
 		h.Monitor.Status = http.StatusServiceUnavailable
 		h.Monitor.Desc = "Service Unavailable"
+	}
+	if resp != nil {
+		resp.Body.Close()
 	}
 	fmt.Fprintln(writer, "http_status:", h.Monitor.Status)
 }

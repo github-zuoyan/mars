@@ -20,10 +20,13 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				_, err := http.Get("http://0.0.0.0:8080")
-				if err != nil {
+				resp, err := http.Get("http://0.0.0.0:8080")
+				if err != nil || resp != nil && resp.StatusCode != http.StatusOK {
 					monitor.Status = http.StatusServiceUnavailable
 					monitor.Desc = "Service Unavailable"
+				}
+				if resp != nil {
+					resp.Body.Close()
 				}
 			}
 		}
