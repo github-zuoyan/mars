@@ -5,6 +5,7 @@ import (
 	"handle"
 	"net/http"
 	"strconv"
+	"time"
 	"vo"
 )
 
@@ -12,6 +13,21 @@ import (
 var monitor = vo.Monitor{http.StatusServiceUnavailable, "503 Service Unavailable"}
 
 func main() {
+
+	//启动定时任务,检测后端应用如果异常，则自动设置状态为503
+	go func() {
+		ticker := time.NewTicker(time.Millisecond * 500)
+		for {
+			select {
+			case <-ticker.C:
+				_, err := http.Get("http://0.0.0.0:8080")
+				if err != nil {
+					monitor.Status = http.StatusServiceUnavailable
+					monitor.Desc = "Service Unavailable"
+				}
+			}
+		}
+	}()
 	http.HandleFunc("/", HttpStatusHandler)
 	http.HandleFunc("/deploy", handle.DeployHandler)
 	http.HandleFunc("/heat", handle.HeatHandler)
@@ -19,6 +35,7 @@ func main() {
 	healthCheck.Monitor = &monitor
 	http.Handle("/hc", healthCheck)
 	http.ListenAndServe("0.0.0.0:8000", nil)
+
 }
 
 func HttpStatusHandler(writer http.ResponseWriter, request *http.Request) {

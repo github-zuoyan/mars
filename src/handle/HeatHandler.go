@@ -53,11 +53,14 @@ func HeatHandler(writer http.ResponseWriter, request *http.Request) {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Fprint(writer, "ERR_HEAT_URL_CONNECT")
+		fmt.Fprint(writer, "ERR_URL_CONNECT")
 		return
 	} else {
 		resp.Body.Close()
 	}
+
+	//first:使用url单个线程预热100次
+	GetHttpCount(url, 100)
 
 	ch := make(chan int, n)
 
@@ -80,6 +83,29 @@ func HeatHandler(writer http.ResponseWriter, request *http.Request) {
 
 	fmt.Fprint(writer, fmt.Sprintf("time=%.2f count=%d qps=%.2f", float64(sum)/1000000.0, n, float64(n)*1000000.0/float64(sum)))
 
+}
+
+func GetHttpCount(url string, count int) (int, error) {
+
+	sum := 0
+	for i := 0; i < count; i++ {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return 0, err
+		}
+		req.Close = true
+		start := time.Now().UnixNano()
+		resp, _ := http.DefaultClient.Do(req)
+		end := time.Now().UnixNano()
+
+		log.Print("time:", int((end-start)/1000000), ", url:", url)
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+			io.Copy(ioutil.Discard, resp.Body)
+		}
+		sum += int((end - start) / 1000)
+	}
+	return sum, nil
 }
 
 func GetHttp(url string, n int, ch chan int, wg *sync.WaitGroup) {
