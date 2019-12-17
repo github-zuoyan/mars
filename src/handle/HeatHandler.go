@@ -28,17 +28,19 @@ func HeatHandler(writer http.ResponseWriter, request *http.Request) {
 			body, _ := ioutil.ReadAll(resp.Body)
 			var urlMapList []map[string]string
 			json.Unmarshal(body, &urlMapList)
-			urlMap := urlMapList[0]
-			conditionMap := make(map[string]int)
-			json.Unmarshal([]byte(urlMap["condition"]), &conditionMap)
 
-			c = conditionMap["c"]
+			if len(urlMapList) > 0 {
 
-			n = conditionMap["n"]
+				urlMap := urlMapList[0]
+				conditionMap := make(map[string]int)
+				json.Unmarshal([]byte(urlMap["condition"]), &conditionMap)
 
-			url = urlMap["url"]
+				c = conditionMap["c"]
+				n = conditionMap["n"]
+				url = urlMap["url"]
+			}
 
-			if url == "" {
+			if url == "" || url == "http://0.0.0.0:8080" {
 				url = "http://0.0.0.0:8080"
 			} else {
 				u, err := URL.Parse(url)
@@ -47,6 +49,12 @@ func HeatHandler(writer http.ResponseWriter, request *http.Request) {
 				} else {
 					url = "http://0.0.0.0:8080" + u.Path + "?" + u.RawQuery
 				}
+			}
+			if c <= 0 {
+				c = 10
+			}
+			if n <= 0 {
+				n = 1000
 			}
 		}
 	}
@@ -100,8 +108,8 @@ func GetHttpCount(url string, count int) (int, error) {
 
 		log.Print("time:", int((end-start)/1000000), ", url:", url)
 		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
 			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
 		}
 		sum += int((end - start) / 1000)
 	}
@@ -126,8 +134,8 @@ func GetHttp(url string, n int, ch chan int, wg *sync.WaitGroup) {
 		ch <- int((end - start) / 1000)
 		log.Print("time:", int((end-start)/1000000), ", url:", url)
 		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
 			io.Copy(ioutil.Discard, resp.Body)
+			resp.Body.Close()
 		}
 	}
 }
