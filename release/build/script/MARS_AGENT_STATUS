@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+
+app=mars-agent
+root_dir=/opt/soft/mars/agent
+script_name=${root_dir}/control.sh
+log_name=${root_dir}/monitor.log
+workspace=$(cd $(dirname $0)/; pwd)
+cd ${workspace}
+
+function json_value() {
+    KEY=$1
+    num=$2
+    awk -F "[,:}]" '{for(i=1;i<=NF;i++){if($i~/'${KEY}'\042/){print $(i+1)}}}' | tr -d '"' | sed -n ${num}p
+}
+
+function log() {
+    find ${root_dir} -size +100M -wholename ${log_name} -exec bash -c 'echo "" > {}' \;
+    echo "$(date): $@" >> ${log_name}
+}
+
+mkdir -p var
+
+set -e
+
+lock="${workspace}/var/monitor_lock"
+cgroup_restart_count_file="${workspace}/var/cgroup_restart_count"
+gc_restart_count_file="${workspace}/var/gc_restart_count"
+
+exec 200>${lock}
+flock -n 200 || (log "cannot get monitor lock, exit"; exit 1)
+
+pid=$$
+echo ${pid} 1>&200
+
+log "get monitor lock, start monitor process"
+
+web_ip=$(bash ${script_name} get_web_ip)
+server=http://${web_ip}/api/agent/status
+
+ip=$(bash ${script_name} get_ip_list)
+version=$(bash ${script_name} version)
+os_version=$(bash ${script_name} get_os_version)
+
+#check cgroup
+need_restart=$(bash ${script_name} check_cgroup)
+if [[ ${need_restart} -eq 1 ]]; then
+    if [[ -f ${cgroup_restart_count_file} ]];then
+        count=$(cat ${cgroup_restart_count_file})
+        re='^[0-9]+$'
+        if [[ -n ${count} ]] && [[ ${count} =~ ${re} ]]; then
+            if [[ ${count} -ge 5 ]]; then
+                log "restart agent to reconfigure cgroup"
+                echo 0 > ${cgroup_restart_count_file}
+                [[ ${os_version} -eq 7 ]] && /usr/bin/systemctl restart ${app}
+                [[ ${os_version} -eq 6 ]] && /sbin/service ${app}d restart
+                return
+            fi
+            count=$((${count} + 1))
+            log "change cgroup restart count to ${count}"
+            echo ${count} > ${cgroup_restart_count_file}
+        else
+            echo 1 > ${cgroup_restart_count_file}
+        fi
+    else
+        echo 1 > ${cgroup_restart_count_file}
+    fi
+else
+    echo 0 > ${cgroup_restart_count_file}
+fi
+
+#check gc config
+need_restart=$(bash ${script_name} check_gc_config)
+if [[ ${need_restart} -eq 1 ]]; then
+    if [[ -f ${gc_restart_count_file} ]];then
+        count=$(cat ${gc_restart_count_file})
+        re='^[0-9]+$'
+        if [[ -n ${count} ]] && [[ ${count} =~ ${re} ]]; then
+            if [[ ${count} -ge 5 ]]; then
+                log "restart agent to reconfigure gc"
+                echo 0 > ${gc_restart_count_file}
+                [[ ${os_version} -eq 7 ]] && /usr/bin/systemctl restart ${app}
+                [[ ${os_version} -eq 6 ]] && /sbin/service ${app}d restart
+                return
+            fi
+            count=$((${count} + 1))
+            log "change gc restart count to ${count}"
+            echo ${count} > ${gc_restart_count_file}
+        else
+            echo 1 > ${gc_restart_count_file}
+        fi
+    else
+        echo 1 > ${gc_restart_count_file}
+    fi
+else
+    echo 0 > ${gc_restart_count_file}
+fi
+
+data='{"hostIp":"'${ip}'","currentVersion":"'${version}'","type":"monitor"}'
+
+HTTP_RESPONSE=$(curl --silent --write-out "HTTPSTATUS:%{http_code}" -H "Content-Type: application/json" -X POST ${server} -d ${data})
+HTTP_BODY=$(echo ${HTTP_RESPONSE} | sed -e 's/HTTPSTATUS\:.*//g')
+HTTP_STATUS=$(echo ${HTTP_RESPONSE} | tr -d '\n' | sed -e 's/.*HTTPSTATUS://')
+
+log "HTTP_BODY: ${HTTP_BODY}"
+
+if [[ ${HTTP_STATUS} -eq 200 ]];then
+    code=$(echo ${HTTP_BODY} | json_value code)
+    if [[ ${code} -eq 0 ]]; then
+        needRestart=$(echo ${HTTP_BODY} | json_value needRestart)
+        needSuspend=$(echo ${HTTP_BODY} | json_value needSuspend)
+        needInstall=$(echo ${HTTP_BODY} | json_value needInstall)
+        if [[ ${needInstall} == "true" ]];then
+            targetVersion=$(echo ${HTTP_BODY} | json_value targetVersion)
+            log "install agent: targetVersion is ${targetVersion}"
+            [[ ${os_version} -eq 6 ]] && bash ${script_name} install "${app}-${targetVersion}.el6.x86_64.rpm"
+            [[ ${os_version} -eq 7 ]] && bash ${script_name} install "${app}-${targetVersion}.el7.x86_64.rpm"
+        elif [[ ${needSuspend} == "true" ]];then
+            log "suspend agent"
+            [[ ${os_version} -eq 7 ]] && /usr/bin/systemctl stop ${app}
+            [[ ${os_version} -eq 6 ]] && /sbin/service ${app}d stop
+        elif [[ ${needRestart} == "true" ]];then
+            log "restart agent"
+            [[ ${os_version} -eq 7 ]] && /usr/bin/systemctl restart ${app}
+            [[ ${os_version} -eq 6 ]] && /sbin/service ${app}d restart
+        fi
+    fi
+fi
