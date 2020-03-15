@@ -37,7 +37,10 @@ func main() {
 	var healthCheck handle.HealthCheck
 	healthCheck.Monitor = &monitor
 	http.Handle("/hc", healthCheck)
-	http.ListenAndServe("0.0.0.0:8000", nil)
+
+	server := http.Server{Addr: "0.0.0.0:8000", Handler: nil, ReadTimeout: time.Second * 3}
+	server.SetKeepAlivesEnabled(false)
+	server.ListenAndServe()
 
 }
 
